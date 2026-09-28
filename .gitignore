@@ -38,3 +38,6 @@ out/
 
 *.pdf
 *.pem
+.DS_Store
+.env
+/storage/
