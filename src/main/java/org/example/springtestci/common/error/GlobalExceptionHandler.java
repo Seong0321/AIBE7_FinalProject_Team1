@@ -9,7 +9,9 @@ import org.example.springtestci.common.config.RequestIdFilter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
+import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -55,6 +57,15 @@ public class GlobalExceptionHandler {
 
   @ExceptionHandler(Exception.class)
   ResponseEntity<ErrorResponse> handleUnexpected(Exception exception, HttpServletRequest request) {
+    if (exception instanceof HttpMessageNotReadableException) {
+      return response(ErrorCode.INVALID_INPUT, request, List.of());
+    }
+
+    if (exception instanceof org.springframework.web.ErrorResponse webError) {
+      HttpStatusCode status = webError.getStatusCode();
+      return response(status, "WEB_" + status.value(), "요청을 처리할 수 없습니다.", request, List.of());
+    }
+
     log.error(
         "Unhandled exception requestId={}, type={}", requestId(), exception.getClass().getName());
     return response(ErrorCode.INTERNAL_ERROR, request, List.of());
@@ -66,16 +77,26 @@ public class GlobalExceptionHandler {
 
   private ResponseEntity<ErrorResponse> response(
       ErrorCode errorCode, HttpServletRequest request, List<ErrorResponse.FieldError> fieldErrors) {
+    return response(
+        errorCode.status(), errorCode.code(), errorCode.message(), request, fieldErrors);
+  }
+
+  private ResponseEntity<ErrorResponse> response(
+      HttpStatusCode status,
+      String code,
+      String message,
+      HttpServletRequest request,
+      List<ErrorResponse.FieldError> fieldErrors) {
     ErrorResponse body =
         new ErrorResponse(
             Instant.now(clock),
-            errorCode.status().value(),
-            errorCode.code(),
-            errorCode.message(),
+            status.value(),
+            code,
+            message,
             request.getRequestURI(),
             requestId(),
             fieldErrors);
-    return ResponseEntity.status(errorCode.status()).body(body);
+    return ResponseEntity.status(status).body(body);
   }
 
   private String requestId() {

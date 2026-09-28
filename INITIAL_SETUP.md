@@ -96,6 +96,8 @@ cp .env.example .env
 
 초기 `compose.yaml`에는 PostgreSQL과 Redis만 포함합니다.
 
+PostgreSQL 볼륨이 처음 생성될 때 애플리케이션 DB `aibe7`과 분리된 테스트 DB `aibe7_test`를 함께 생성합니다. 이미 초기화된 PostgreSQL 볼륨에는 초기화 스크립트가 다시 실행되지 않으므로 테스트 DB를 직접 생성하거나 볼륨을 초기화해야 합니다.
+
 ```bash
 docker compose up -d
 docker compose ps

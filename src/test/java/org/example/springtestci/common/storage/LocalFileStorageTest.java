@@ -6,9 +6,12 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -38,5 +41,28 @@ class LocalFileStorageTest {
     LocalFileStorage storage = new LocalFileStorage(tempDirectory.toString());
 
     assertThrows(IllegalArgumentException.class, () -> storage.load("../outside.txt"));
+  }
+
+  @Test
+  void removesAPartiallyWrittenFileWhenCopyFails() throws Exception {
+    LocalFileStorage storage = new LocalFileStorage(tempDirectory.toString());
+    InputStream failingContent =
+        new InputStream() {
+          private int reads;
+
+          @Override
+          public int read() throws IOException {
+            if (reads++ < 4) {
+              return 'a';
+            }
+            throw new IOException("simulated read failure");
+          }
+        };
+
+    assertThrows(IOException.class, () -> storage.store("partial.txt", failingContent));
+
+    try (Stream<Path> files = Files.list(tempDirectory)) {
+      assertEquals(0L, files.count());
+    }
   }
 }

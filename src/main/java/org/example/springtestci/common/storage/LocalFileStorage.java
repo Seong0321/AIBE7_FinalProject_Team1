@@ -27,7 +27,16 @@ public class LocalFileStorage implements FileStorage {
     Files.createDirectories(root);
     String key = UUID.randomUUID() + "-" + safeFilename(originalFilename);
     Path destination = resolve(key);
-    Files.copy(content, destination, StandardCopyOption.REPLACE_EXISTING);
+    try {
+      Files.copy(content, destination, StandardCopyOption.REPLACE_EXISTING);
+    } catch (IOException exception) {
+      try {
+        Files.deleteIfExists(destination);
+      } catch (IOException cleanupException) {
+        exception.addSuppressed(cleanupException);
+      }
+      throw exception;
+    }
     return key;
   }
 
